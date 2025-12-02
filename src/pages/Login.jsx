@@ -7,8 +7,14 @@ export default function Login() {
     const [password, setPassword] = useState('')
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
-    const { signIn } = useAuth()
+    const { signIn, user, isAdmin } = useAuth()
     const navigate = useNavigate()
+
+    useEffect(() => {
+        if (user && isAdmin) {
+            navigate('/')
+        }
+    }, [user, isAdmin, navigate])
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -17,13 +23,13 @@ export default function Login() {
         try {
             const { error } = await signIn(email, password)
             if (error) throw error
-            navigate('/')
+            // Navigation is handled by useEffect
         } catch (err) {
             setError(err.message || 'Falha no login. Verifique suas credenciais.')
             console.error(err)
-        } finally {
             setLoading(false)
         }
+        // Do not set loading false on success to prevent flash before redirect
     }
 
     return (

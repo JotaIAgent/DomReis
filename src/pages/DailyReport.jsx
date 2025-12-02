@@ -81,13 +81,16 @@ export default function DailyReport() {
                     return `${year}-${month}-${day}` === date
                 }
 
-                // Handle ISO
-                const d = new Date(dateStr)
-                if (!isNaN(d.getTime())) {
-                    // Use local time format to match Reports.jsx
-                    return format(d, 'yyyy-MM-dd') === date
+                // Handle ISO strings: Extract YYYY-MM-DD directly
+                if (dateStr.includes('T')) {
+                    const [datePart] = dateStr.split('T')
+                    return datePart === date
                 }
-                return false
+
+                // Handle YYYY-MM-DD without T
+                if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    return dateStr === date
+                }
             }
 
             const dayTransactions = []

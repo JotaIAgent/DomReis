@@ -7,19 +7,38 @@ import { Calendar, DollarSign, Clock, User } from 'lucide-react'
 // Helper function to safely parse dates from bot format (DD/MM + HH:mm)
 const safeParseDate = (dateString, timeString) => {
     try {
-        // If it's already an ISO date
+        let year, month, day
+
+        // Handle ISO strings: Extract YYYY-MM-DD directly
         if (dateString && dateString.includes('T')) {
-            const date = parseISO(dateString)
-            return isValid(date) ? date : null
+            const [datePart] = dateString.split('T')
+            const [y, m, d] = datePart.split('-')
+            year = parseInt(y)
+            month = parseInt(m)
+            day = parseInt(d)
+        }
+        // Handle YYYY-MM-DD without T
+        else if (dateString && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [y, m, d] = dateString.split('-')
+            year = parseInt(y)
+            month = parseInt(m)
+            day = parseInt(d)
+        }
+        // Handle DD/MM pattern
+        else if (dateString) {
+            const match = dateString.match(/(\d{2})\/(\d{2})/)
+            if (match) {
+                const [_, d, m] = match
+                day = parseInt(d)
+                month = parseInt(m)
+                year = new Date().getFullYear()
+            }
         }
 
-        // If it contains a DD/MM pattern (e.g. "02/12", "Terç02/12", "Segunda, 02/12")
-        const match = dateString && dateString.match(/(\d{2})\/(\d{2})/)
-        if (match) {
-            const [_, day, month] = match
-            const year = new Date().getFullYear()
+        if (year && month && day) {
             const [hours, minutes] = (timeString || '00:00').split(':')
-            const date = new Date(year, parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes))
+            // Create local date
+            const date = new Date(year, month - 1, day, parseInt(hours), parseInt(minutes))
             return isValid(date) ? date : null
         }
 
@@ -58,24 +77,13 @@ export default function Dashboard() {
 
             // Filter today's appointments
             const todayAppointments = allAppointments?.filter(apt => {
-                if (!apt.Data) return false
+                const date = safeParseDate(apt.Data, apt.Hora)
+                if (!date) return false
 
-                let aptDate = apt.Data
-                // If it's an ISO string (from manual entry), convert to DD/MM
-                if (apt.Data.includes('T') || apt.Data.includes('-')) {
-                    const dateObj = new Date(apt.Data)
-                    if (!isNaN(dateObj.getTime())) {
-                        aptDate = dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })
-                    }
-                }
+                const d1 = date.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+                const d2 = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
 
-                // Clean up potential "Segunda, 01/12" formats
-                const match = aptDate.match(/(\d{2})\/(\d{2})/)
-                if (match) {
-                    aptDate = `${match[1]}/${match[2]}`
-                }
-
-                return aptDate === today
+                return d1 === d2
             }) || []
 
             // Calculate metrics

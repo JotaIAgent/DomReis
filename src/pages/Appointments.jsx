@@ -36,10 +36,43 @@ export default function Appointments() {
         }
     }, [])
 
+    const parseDate = (dateStr) => {
+        if (!dateStr) return null
+
+        // Handle ISO strings: Extract YYYY-MM-DD directly to avoid timezone shifts
+        if (dateStr.includes('T')) {
+            const [datePart] = dateStr.split('T')
+            const [year, month, day] = datePart.split('-')
+            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+        }
+
+        // Handle YYYY-MM-DD without T
+        if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month, day] = dateStr.split('-')
+            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+        }
+
+        // Try to find DD/MM/YYYY pattern
+        const matchFull = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/)
+        if (matchFull) {
+            const [_, day, month, year] = matchFull
+            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+        }
+
+        // Try to find DD/MM pattern (works for "01/12", "Segunda, 01/12")
+        const matchShort = dateStr.match(/(\d{2})\/(\d{2})/)
+        if (matchShort) {
+            const [_, day, month] = matchShort
+            const year = new Date().getFullYear()
+            return new Date(year, parseInt(month) - 1, parseInt(day))
+        }
+
+        return null
+    }
+
     const fetchAppointments = async () => {
         try {
-            // Get today's date in DD/MM format to match bot format
-            const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })
+            const today = new Date()
 
             // Fetch all appointments and filter by today's date
             const { data, error } = await supabase
@@ -51,25 +84,17 @@ export default function Appointments() {
 
             // Filter appointments for today
             const todayAppointments = data?.filter(apt => {
-                if (!apt.Data) return false
+                const aptDate = parseDate(apt.Data)
+                if (!aptDate) return false
 
-                let aptDate = apt.Data
-                // If it's an ISO string (from manual entry), convert to DD/MM
-                if (apt.Data.includes('T') || apt.Data.includes('-')) {
-                    const dateObj = new Date(apt.Data)
-                    if (!isNaN(dateObj.getTime())) {
-                        aptDate = dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })
-                    }
-                }
+                // Compare using local date strings to ensure timezone correctness
+                // We compare YYYY-MM-DD
+                const d1 = aptDate.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+                const d2 = today.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
 
-                // Clean up potential "Segunda, 01/12" formats
-                const match = aptDate.match(/(\d{2})\/(\d{2})/)
-                if (match) {
-                    aptDate = `${match[1]}/${match[2]}`
-                }
-
-                return aptDate === today
+                return d1 === d2
             }) || []
+
             setAppointments(todayAppointments)
         } catch (error) {
             console.error('Error fetching appointments:', error)

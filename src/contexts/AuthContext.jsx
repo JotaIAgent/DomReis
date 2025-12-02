@@ -39,6 +39,7 @@ export const AuthProvider = ({ children }) => {
 
     const fetchUserRole = async (userId) => {
         console.log('Fetching role for user:', userId)
+        setLoading(true)
         try {
             const { data, error } = await supabase
                 .from('user_roles')

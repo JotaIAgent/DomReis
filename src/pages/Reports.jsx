@@ -63,6 +63,16 @@ export default function Reports() {
             const getDateKey = (dateStr) => {
                 if (!dateStr) return null
 
+                // Handle ISO strings: Extract YYYY-MM-DD directly
+                if (dateStr.includes('T')) {
+                    return dateStr.split('T')[0]
+                }
+
+                // Handle YYYY-MM-DD without T
+                if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    return dateStr
+                }
+
                 // Handle DD/MM/YYYY
                 const matchFull = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/)
                 if (matchFull) {
@@ -78,11 +88,6 @@ export default function Reports() {
                     return `${year}-${month}-${day}`
                 }
 
-                // Handle ISO
-                const date = new Date(dateStr)
-                if (!isNaN(date.getTime())) {
-                    return format(date, 'yyyy-MM-dd')
-                }
                 return null
             }
 

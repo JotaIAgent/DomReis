@@ -24,14 +24,14 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess }) {
 
         try {
             // Combine date and time
-            const dateTime = new Date(`${formData.data}T${formData.hora}:00`)
+            // const dateTime = new Date(`${formData.data}T${formData.hora}:00`)
 
             const { error } = await supabase
                 .from('dados_agendamentos')
                 .insert([{
                     Profissional: formData.profissional,
                     Serviços: formData.servicos,
-                    Data: dateTime.toISOString(),
+                    Data: formData.data, // Save as YYYY-MM-DD string to avoid timezone shifts
                     Hora: formData.hora,
                     Cliente: formData.cliente,
                     Telefone: formData.telefone,
