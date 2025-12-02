@@ -3,50 +3,8 @@ import { supabase } from '../lib/supabase'
 import { format, parseISO, isValid } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Calendar, DollarSign, Clock, User } from 'lucide-react'
+import { parseDateToLocal, isSameDay } from '../utils/dateUtils'
 
-// Helper function to safely parse dates from bot format (DD/MM + HH:mm)
-const safeParseDate = (dateString, timeString) => {
-    try {
-        let year, month, day
-
-        // Handle ISO strings: Extract YYYY-MM-DD directly
-        if (dateString && dateString.includes('T')) {
-            const [datePart] = dateString.split('T')
-            const [y, m, d] = datePart.split('-')
-            year = parseInt(y)
-            month = parseInt(m)
-            day = parseInt(d)
-        }
-        // Handle YYYY-MM-DD without T
-        else if (dateString && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            const [y, m, d] = dateString.split('-')
-            year = parseInt(y)
-            month = parseInt(m)
-            day = parseInt(d)
-        }
-        // Handle DD/MM pattern
-        else if (dateString) {
-            const match = dateString.match(/(\d{2})\/(\d{2})/)
-            if (match) {
-                const [_, d, m] = match
-                day = parseInt(d)
-                month = parseInt(m)
-                year = new Date().getFullYear()
-            }
-        }
-
-        if (year && month && day) {
-            const [hours, minutes] = (timeString || '00:00').split(':')
-            // Create local date
-            const date = new Date(year, month - 1, day, parseInt(hours), parseInt(minutes))
-            return isValid(date) ? date : null
-        }
-
-        return null
-    } catch {
-        return null
-    }
-}
 
 export default function Dashboard() {
     const [metrics, setMetrics] = useState({
@@ -72,18 +30,12 @@ export default function Dashboard() {
 
             if (error) throw error
 
-            // Get today's date in DD/MM format (Sao Paulo timezone)
-            const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })
+            const today = new Date()
 
             // Filter today's appointments
             const todayAppointments = allAppointments?.filter(apt => {
-                const date = safeParseDate(apt.Data, apt.Hora)
-                if (!date) return false
-
-                const d1 = date.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
-                const d2 = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
-
-                return d1 === d2
+                const date = parseDateToLocal(apt.Data)
+                return isSameDay(date, today)
             }) || []
 
             // Calculate metrics
@@ -103,19 +55,23 @@ export default function Dashboard() {
 
             // Process appointments for the list:
             // 1. Parse dates
-            // 2. Filter for future/today
+            // 2. Filter for future appointments (after current time)
             // 3. Sort by date ascending
             const now = new Date()
-            now.setHours(0, 0, 0, 0) // Compare from start of today
 
             const sortedUpcoming = allAppointments
                 ?.map(apt => {
-                    const date = safeParseDate(apt.Data, apt.Hora)
+                    const date = parseDateToLocal(apt.Data)
+                    // If we have time, add it to the date object for sorting
+                    if (date && apt.Hora) {
+                        const [hours, minutes] = apt.Hora.split(':').map(Number)
+                        date.setHours(hours, minutes)
+                    }
                     return { ...apt, parsedDate: date }
                 })
                 .filter(apt => apt.parsedDate && apt.parsedDate >= now)
                 .sort((a, b) => a.parsedDate - b.parsedDate)
-                .slice(0, 5) || []
+                .slice(0, 10) || []
 
             setAppointments({
                 upcoming: sortedUpcoming
@@ -172,34 +128,64 @@ export default function Dashboard() {
                     <div className="p-4 border-b border-dark-700">
                         <h2 className="text-lg font-semibold text-white">Próximos Agendamentos</h2>
                     </div>
-                    <div className="divide-y divide-dark-700">
-                        {appointments.upcoming.length === 0 ? (
-                            <p className="p-4 text-gray-400 text-sm">Nenhum agendamento futuro.</p>
-                        ) : (
-                            appointments.upcoming.map((apt) => {
-                                const date = safeParseDate(apt.Data, apt.Hora)
-                                const dateStr = date ? date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' }) : apt.Data
-                                return (
-                                    <div key={apt.id || Math.random()} className="p-4 hover:bg-dark-700 transition-colors">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center space-x-3">
-                                                <div className="bg-dark-900 p-2 rounded-full text-primary">
-                                                    <User size={16} />
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-medium text-white">{apt.Cliente}</p>
-                                                    <p className="text-xs text-gray-400">{apt.Serviços}</p>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-sm font-bold text-white">{apt.Hora}</p>
-                                                <p className="text-xs text-gray-500">{dateStr}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )
-                            })
-                        )}
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-dark-700">
+                            <thead className="bg-dark-900">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Data/Hora</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Cliente</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Telefone</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Profissional</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Serviços</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-dark-700">
+                                {appointments.upcoming.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="6" className="px-6 py-4 text-center text-gray-400 text-sm">
+                                            Nenhum agendamento futuro.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    appointments.upcoming.map((apt) => {
+                                        const date = parseDateToLocal(apt.Data)
+                                        const dateStr = date ? date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : apt.Data
+                                        return (
+                                            <tr key={apt.id || Math.random()} className="hover:bg-dark-700 transition-colors">
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-bold text-white">{apt.Hora}</span>
+                                                        <span className="text-xs text-gray-500">{dateStr}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className="text-sm font-medium text-white">{apt.Cliente}</span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className="text-sm text-gray-300">{apt.Telefone}</span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className="text-sm text-white">{apt.Profissional || '-'}</span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className="text-sm text-gray-300">{apt.Serviços}</span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-primary font-bold">
+                                                    {(() => {
+                                                        const val = apt['Valor serviços']
+                                                        const num = typeof val === 'string'
+                                                            ? parseFloat(val.replace('R$', '').replace(',', '.').trim())
+                                                            : Number(val)
+                                                        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num || 0)
+                                                    })()}
+                                                </td>
+                                            </tr>
+                                        )
+                                    })
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

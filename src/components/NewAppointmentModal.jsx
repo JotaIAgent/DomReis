@@ -26,12 +26,16 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess }) {
             // Combine date and time
             // const dateTime = new Date(`${formData.data}T${formData.hora}:00`)
 
+            // Format date to DD/MM/YYYY
+            const [year, month, day] = formData.data.split('-')
+            const formattedDate = `${day}/${month}/${year}`
+
             const { error } = await supabase
                 .from('dados_agendamentos')
                 .insert([{
                     Profissional: formData.profissional,
                     Serviços: formData.servicos,
-                    Data: formData.data, // Save as YYYY-MM-DD string to avoid timezone shifts
+                    Data: formattedDate,
                     Hora: formData.hora,
                     Cliente: formData.cliente,
                     Telefone: formData.telefone,
