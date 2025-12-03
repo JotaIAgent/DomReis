@@ -22,7 +22,7 @@ export default function Layout() {
     const navigation = [
         { name: 'Dashboard', href: '/', icon: LayoutDashboard },
         { name: 'Agendamentos', href: '/agendamentos', icon: Calendar },
-        { name: 'Frequência', href: '/clientes', icon: Users },
+        { name: 'Clientes', href: '/clientes', icon: Users },
         { name: 'Clientes VIP', href: '/vips', icon: Crown },
         { name: 'Financeiro', href: '/financeiro', icon: DollarSign },
         { name: 'Relatórios', href: '/relatorios', icon: BarChart3 },
