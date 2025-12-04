@@ -20,6 +20,12 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+
+        if (!formData.servicos) {
+            alert('Por favor, selecione pelo menos um serviço.')
+            return
+        }
+
         setLoading(true)
 
         try {
@@ -97,15 +103,36 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess }) {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Serviços</label>
-                        <input
-                            type="text"
-                            required
-                            className="w-full bg-dark-900 border border-dark-700 rounded-md px-3 py-2 text-white focus:outline-none focus:border-primary"
-                            placeholder="Ex: Corte, Barba"
-                            value={formData.servicos}
-                            onChange={e => setFormData({ ...formData, servicos: e.target.value })}
-                        />
+                        <label className="block text-sm font-medium text-gray-400 mb-2">Serviços</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {['Cabelo', 'Barba', 'Sobrancelhas', 'Relaxamento', 'Luzes', 'Pigmentação', 'Depilação Cera Nariz', 'Maquina na barba', 'Risco'].map((service) => (
+                                <button
+                                    key={service}
+                                    type="button"
+                                    onClick={() => {
+                                        const currentServices = formData.servicos ? formData.servicos.split(', ').filter(Boolean) : []
+                                        const isSelected = currentServices.includes(service)
+
+                                        let newServices
+                                        if (isSelected) {
+                                            newServices = currentServices.filter(s => s !== service)
+                                        } else {
+                                            newServices = [...currentServices, service]
+                                        }
+
+                                        setFormData({ ...formData, servicos: newServices.join(', ') })
+                                    }}
+                                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors border ${formData.servicos.includes(service)
+                                        ? 'bg-primary text-dark-900 border-primary'
+                                        : 'bg-dark-900 text-gray-300 border-dark-700 hover:border-gray-500'
+                                        }`}
+                                >
+                                    {service}
+                                </button>
+                            ))}
+                        </div>
+                        {/* Hidden input to maintain required validation if needed, or handle validation in handleSubmit */}
+                        {formData.servicos === '' && <p className="text-xs text-red-500 mt-1">Selecione pelo menos um serviço</p>}
                     </div>
 
                     <div>
