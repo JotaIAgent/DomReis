@@ -136,7 +136,7 @@ export default function DailyReport() {
             manual?.forEach(t => {
                 if (isSameDate(t.data)) {
                     const val = parseValue(t.valor)
-                    const isInc = t.tipo === 'pix_manual' || t.tipo === 'RECEITA PIX'
+                    const isInc = t.tipo === 'pix_manual' || t.tipo === 'RECEITA PIX' || t.tipo === 'entrada'
                     const isRef = t.tipo === 'refund'
 
                     if (isInc) {

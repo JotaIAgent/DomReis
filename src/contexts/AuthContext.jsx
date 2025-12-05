@@ -72,7 +72,13 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <AuthContext.Provider value={value}>
-            {!loading && children}
+            {loading ? (
+                <div className="min-h-screen flex items-center justify-center bg-dark-900 text-primary">
+                    Carregando autenticação...
+                </div>
+            ) : (
+                children
+            )}
         </AuthContext.Provider>
     )
 }

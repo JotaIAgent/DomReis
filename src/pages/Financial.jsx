@@ -149,7 +149,7 @@ export default function Financial() {
             filteredManual.forEach(t => {
                 const val = parseValue(t.valor)
                 // Categorize based on type
-                if (t.tipo === 'pix_manual' || t.tipo === 'RECEITA PIX') {
+                if (t.tipo === 'pix_manual' || t.tipo === 'RECEITA PIX' || t.tipo === 'entrada') {
                     manualPixTotal += val
                 } else if (t.tipo === 'refund') {
                     expensesTotal += val
@@ -186,8 +186,11 @@ export default function Financial() {
             startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
             endDate = today
         } else {
-            startDate = new Date(customRange.start)
-            endDate = new Date(customRange.end)
+            // Parse YYYY-MM-DD format explicitly to avoid timezone issues
+            const [startYear, startMonth, startDay] = customRange.start.split('-').map(Number)
+            const [endYear, endMonth, endDay] = customRange.end.split('-').map(Number)
+            startDate = new Date(startYear, startMonth - 1, startDay)
+            endDate = new Date(endYear, endMonth - 1, endDay)
         }
 
         // Adjust time to start/end of day
@@ -422,7 +425,7 @@ export default function Financial() {
                                     </tr>
                                 ) : (
                                     manualTransactions.map((tx, idx) => {
-                                        const isIncome = tx.tipo === 'pix_manual' || tx.tipo === 'RECEITA PIX'
+                                        const isIncome = tx.tipo === 'pix_manual' || tx.tipo === 'RECEITA PIX' || tx.tipo === 'entrada'
                                         const isRefund = tx.tipo === 'refund'
                                         // If not income and not refund, assume expense (including 'Lazer')
                                         const isExpense = !isIncome && !isRefund

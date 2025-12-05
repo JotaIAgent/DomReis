@@ -32,33 +32,14 @@ export default function Dashboard() {
 
             const today = new Date()
 
-            // Filter today's appointments
+            // Filter today's appointments for count
             const todayAppointments = allAppointments?.filter(apt => {
                 const date = parseDateToLocal(apt.Data)
                 return isSameDay(date, today)
             }) || []
 
-            // Calculate metrics
-            const appointmentsCount = todayAppointments.length
-            const revenue = todayAppointments.reduce((acc, curr) => {
-                const value = curr['Valor serviços']
-                if (typeof value === 'string') {
-                    return acc + parseFloat(value.replace('R$', '').replace(',', '.').trim()) || 0
-                }
-                return acc + (Number(value) || 0)
-            }, 0)
-
-            setMetrics({
-                appointmentsCount,
-                revenue
-            })
-
-            // Process appointments for the list:
-            // 1. Parse dates
-            // 2. Filter for future appointments (after current time)
-            // 3. Sort by date ascending
+            // Process ALL upcoming appointments (not finished)
             const now = new Date()
-
             const sortedUpcoming = allAppointments
                 ?.map(apt => {
                     const date = parseDateToLocal(apt.Data)
@@ -69,12 +50,25 @@ export default function Dashboard() {
                     }
                     return { ...apt, parsedDate: date }
                 })
-                .filter(apt => apt.parsedDate && apt.parsedDate >= now)
-                .sort((a, b) => a.parsedDate - b.parsedDate)
-                .slice(0, 10) || []
+                .filter(apt => apt.parsedDate && apt.parsedDate >= now && !apt.finalizado)
+                .sort((a, b) => a.parsedDate - b.parsedDate) || []
+
+            // Calculate projection from ALL upcoming appointments
+            const projectedRevenue = sortedUpcoming.reduce((acc, curr) => {
+                const value = curr['Valor serviços']
+                if (typeof value === 'string') {
+                    return acc + parseFloat(value.replace('R$', '').replace(',', '.').trim()) || 0
+                }
+                return acc + (Number(value) || 0)
+            }, 0)
+
+            setMetrics({
+                appointmentsCount: sortedUpcoming.length,
+                revenue: projectedRevenue
+            })
 
             setAppointments({
-                upcoming: sortedUpcoming
+                upcoming: sortedUpcoming.slice(0, 10)
             })
 
         } catch (error) {
@@ -97,7 +91,7 @@ export default function Dashboard() {
                 <div className="bg-dark-800 p-6 rounded-xl border border-dark-700 shadow-lg">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-400">Agendamentos Hoje</p>
+                            <p className="text-sm text-gray-400">Agendamentos Futuros</p>
                             <p className="text-3xl font-bold text-white mt-1">{metrics.appointmentsCount}</p>
                         </div>
                         <div className="p-3 bg-blue-500/10 rounded-full text-blue-500">
@@ -109,7 +103,7 @@ export default function Dashboard() {
                 <div className="bg-dark-800 p-6 rounded-xl border border-dark-700 shadow-lg">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-400">Faturamento Esperado</p>
+                            <p className="text-sm text-gray-400">Projeção de Faturamento</p>
                             <p className="text-3xl font-bold text-primary mt-1">
                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics.revenue)}
                             </p>

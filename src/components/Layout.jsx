@@ -10,7 +10,9 @@ import {
     LogOut,
     Menu,
     X,
-    BarChart3
+    BarChart3,
+    ShoppingCart,
+    Settings
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -23,8 +25,9 @@ export default function Layout() {
         { name: 'Dashboard', href: '/', icon: LayoutDashboard },
         { name: 'Agendamentos', href: '/agendamentos', icon: Calendar },
         { name: 'Clientes', href: '/clientes', icon: Users },
-        { name: 'Clientes VIP', href: '/vips', icon: Crown },
+        { name: 'Venda', href: '/venda', icon: ShoppingCart },
         { name: 'Financeiro', href: '/financeiro', icon: DollarSign },
+        { name: 'Valores', href: '/valores', icon: Settings },
         { name: 'Relatórios', href: '/relatorios', icon: BarChart3 },
     ]
 

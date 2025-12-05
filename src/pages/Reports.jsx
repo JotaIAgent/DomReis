@@ -112,7 +112,7 @@ export default function Reports() {
                 const key = getDateKey(t.data)
                 if (key) {
                     const val = parseValue(t.valor)
-                    const isIncome = t.tipo === 'pix_manual' || t.tipo === 'RECEITA PIX'
+                    const isIncome = t.tipo === 'pix_manual' || t.tipo === 'RECEITA PIX' || t.tipo === 'entrada'
                     const isRefund = t.tipo === 'refund'
 
                     if (isIncome) {

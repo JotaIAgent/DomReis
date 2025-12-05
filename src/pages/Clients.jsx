@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Search, User, Crown, History, UserX, CheckCircle, Phone, CreditCard } from 'lucide-react'
+import { Search, User, Crown, History, UserX, CheckCircle, Phone, CreditCard, Edit3, X } from 'lucide-react'
 import { parseDateToLocal } from '../utils/dateUtils'
 import clsx from 'clsx'
 
@@ -13,6 +13,8 @@ export default function Clients() {
     const [vipStatus, setVipStatus] = useState(null)
     const [loading, setLoading] = useState(false)
     const [loadingDetails, setLoadingDetails] = useState(false)
+    const [showEditModal, setShowEditModal] = useState(false)
+    const [editForm, setEditForm] = useState({ Nome: '', Telefone: '', CPF: '' })
 
     // Fetch all clients on mount
     useEffect(() => {
@@ -72,22 +74,137 @@ export default function Clients() {
                 if (historyError) throw historyError
                 setClientHistory(history || [])
 
+                // 3. Fetch Sales Transactions
+                const { data: transactions, error: txError } = await supabase
+                    .from('transacoes_financeiras')
+                    .select('*')
+                    .ilike('descricao', `%${client.Nome}%`)
+                    .order('data', { ascending: false })
+
+                if (txError) console.error('Error fetching transactions:', txError)
+
+                // Merge and sort history
+                const combinedHistory = [
+                    ...(history || []).map(h => ({ ...h, type: 'appointment' })),
+                    ...(transactions || []).map(t => ({
+                        id: t.id,
+                        Data: t.data, // Map to same key for sorting
+                        Hora: '-',
+                        Serviços: t.descricao,
+                        'Valor serviços': t.valor,
+                        type: 'sale'
+                    }))
+                ].sort((a, b) => new Date(b.Data) - new Date(a.Data))
+
+                setClientHistory(combinedHistory)
+
                 // 2. Check VIP status
                 const { data: vip, error: vipError } = await supabase
                     .from('clientes_vips')
                     .select('*')
                     .eq('telefone_cliente', client.Telefone)
-                    .single()
-
-                if (vipError && vipError.code !== 'PGRST116') {
-                    console.error('Error checking VIP:', vipError)
-                }
                 setVipStatus(vip || null)
             }
         } catch (error) {
             console.error('Error fetching client details:', error)
         } finally {
             setLoadingDetails(false)
+        }
+    }
+
+    const toggleValidation = async () => {
+        if (!selectedClient) return
+
+        try {
+            const newValue = !selectedClient.Validado
+            const { error } = await supabase
+                .from('clientes')
+                .update({ Validado: newValue })
+                .eq('id', selectedClient.id)
+
+            if (error) throw error
+
+            // Update local state
+            const updatedClient = { ...selectedClient, Validado: newValue }
+            setSelectedClient(updatedClient)
+            setClients(clients.map(c => c.id === updatedClient.id ? updatedClient : c))
+            setFilteredClients(filteredClients.map(c => c.id === updatedClient.id ? updatedClient : c))
+
+        } catch (error) {
+            console.error('Error updating validation:', error)
+            alert('Erro ao atualizar validação')
+        }
+    }
+
+    const toggleVIP = async () => {
+        if (!selectedClient) return
+
+        const isCurrentlyVIP = vipStatus && vipStatus.length > 0 && vipStatus[0].status_assinatura === 'ATIVO'
+
+        try {
+            if (isCurrentlyVIP) {
+                // Deactivate VIP
+                const { error } = await supabase
+                    .from('clientes_vips')
+                    .update({ status_assinatura: 'INATIVO' })
+                    .eq('telefone_cliente', selectedClient.Telefone)
+
+                if (error) throw error
+
+                // Update local state
+                setVipStatus([{ ...vipStatus[0], status_assinatura: 'INATIVO' }])
+                alert('VIP desativado com sucesso!')
+            } else {
+                // Activate or create VIP record
+                // Calculate expiration date (1 month from now)
+                const now = new Date()
+                const expDate = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate())
+                const activationDate = now.toLocaleDateString('pt-BR')
+                const expirationDate = expDate.toLocaleDateString('pt-BR')
+
+                if (vipStatus && vipStatus.length > 0) {
+                    // Reactivate existing VIP
+                    const { error } = await supabase
+                        .from('clientes_vips')
+                        .update({
+                            status_assinatura: 'ATIVO',
+                            data_ativacao: activationDate,
+                            data_expiracao: expirationDate
+                        })
+                        .eq('telefone_cliente', selectedClient.Telefone)
+
+                    if (error) throw error
+
+                    setVipStatus([{
+                        ...vipStatus[0],
+                        status_assinatura: 'ATIVO',
+                        data_ativacao: activationDate,
+                        data_expiracao: expirationDate
+                    }])
+                } else {
+                    // Create new VIP record
+                    const { data, error } = await supabase
+                        .from('clientes_vips')
+                        .insert([{
+                            cpf_cliente: selectedClient.CPF || '',
+                            telefone_cliente: selectedClient.Telefone,
+                            nome_cliente: selectedClient.Nome,
+                            status_assinatura: 'ATIVO',
+                            data_ativacao: activationDate,
+                            data_expiracao: expirationDate,
+                            valor_mensalidade: '64.99'
+                        }])
+                        .select()
+
+                    if (error) throw error
+
+                    setVipStatus(data)
+                }
+                alert('VIP ativado com sucesso!')
+            }
+        } catch (error) {
+            console.error('Error updating VIP status:', error)
+            alert('Erro ao atualizar status VIP')
         }
     }
 
@@ -101,6 +218,45 @@ export default function Clients() {
 
     const formatCurrency = (val) => {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0)
+    }
+
+    const openEditModal = () => {
+        if (!selectedClient) return
+        setEditForm({
+            Nome: selectedClient.Nome || '',
+            Telefone: selectedClient.Telefone || '',
+            CPF: selectedClient.CPF || ''
+        })
+        setShowEditModal(true)
+    }
+
+    const saveClientEdit = async () => {
+        if (!selectedClient) return
+
+        try {
+            const { error } = await supabase
+                .from('clientes')
+                .update({
+                    Nome: editForm.Nome,
+                    Telefone: editForm.Telefone,
+                    CPF: editForm.CPF
+                })
+                .eq('id', selectedClient.id)
+
+            if (error) throw error
+
+            // Update local state
+            const updatedClient = { ...selectedClient, ...editForm }
+            setSelectedClient(updatedClient)
+            setClients(clients.map(c => c.id === updatedClient.id ? updatedClient : c))
+            setFilteredClients(filteredClients.map(c => c.id === updatedClient.id ? updatedClient : c))
+
+            setShowEditModal(false)
+            alert('Cliente atualizado com sucesso!')
+        } catch (error) {
+            console.error('Error updating client:', error)
+            alert('Erro ao atualizar cliente')
+        }
     }
 
     return (
@@ -189,16 +345,46 @@ export default function Clients() {
                                     </div>
 
                                     <div className="flex items-center gap-2">
-                                        {vipStatus && vipStatus.status_assinatura === 'ATIVO' ? (
-                                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-primary text-dark-900">
+                                        <button
+                                            onClick={toggleValidation}
+                                            className={clsx(
+                                                "px-3 py-1 rounded-full text-sm font-bold transition-colors",
+                                                selectedClient.Validado
+                                                    ? "bg-green-500/20 text-green-500 hover:bg-green-500/30"
+                                                    : "bg-gray-700 text-gray-400 hover:bg-gray-600"
+                                            )}
+                                        >
+                                            {selectedClient.Validado ? 'Validado' : 'Validar'}
+                                        </button>
+
+                                        {vipStatus && vipStatus.length > 0 && vipStatus[0].status_assinatura === 'ATIVO' ? (
+                                            <button
+                                                onClick={toggleVIP}
+                                                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-primary text-dark-900 hover:bg-yellow-500 transition-colors cursor-pointer"
+                                                title="Clique para desativar VIP"
+                                            >
                                                 <Crown size={16} className="mr-2" />
                                                 VIP
-                                            </span>
+                                            </button>
                                         ) : (
-                                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-dark-700 text-gray-400">
-                                                Normal
-                                            </span>
+                                            <button
+                                                onClick={toggleVIP}
+                                                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-dark-700 text-gray-400 hover:bg-dark-600 transition-colors cursor-pointer"
+                                                title="Clique para ativar VIP"
+                                            >
+                                                <Crown size={16} className="mr-2" />
+                                                Ativar VIP
+                                            </button>
                                         )}
+
+                                        <button
+                                            onClick={openEditModal}
+                                            className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+                                            title="Editar dados do cliente"
+                                        >
+                                            <Edit3 size={16} className="mr-2" />
+                                            Editar
+                                        </button>
                                     </div>
                                 </div>
 
@@ -212,7 +398,7 @@ export default function Clients() {
                                     <div className="bg-dark-900 p-4 rounded-lg border border-dark-700">
                                         <p className="text-sm text-gray-400 mb-1">Frequência</p>
                                         <p className="text-2xl font-bold text-white">
-                                            {loadingDetails ? '...' : `${clientHistory.length} visitas`}
+                                            {loadingDetails ? '...' : `${clientHistory.filter(h => h.type === 'appointment').length} visitas`}
                                         </p>
                                     </div>
                                 </div>
@@ -273,6 +459,66 @@ export default function Clients() {
                     )}
                 </div>
             </div>
+
+            {/* Edit Client Modal */}
+            {showEditModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+                    <div className="bg-dark-800 rounded-xl border border-dark-700 w-full max-w-md p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold text-white">Editar Cliente</h2>
+                            <button
+                                onClick={() => setShowEditModal(false)}
+                                className="text-gray-400 hover:text-white"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">Nome</label>
+                                <input
+                                    type="text"
+                                    value={editForm.Nome}
+                                    onChange={e => setEditForm({ ...editForm, Nome: e.target.value })}
+                                    className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">Telefone</label>
+                                <input
+                                    type="text"
+                                    value={editForm.Telefone}
+                                    onChange={e => setEditForm({ ...editForm, Telefone: e.target.value })}
+                                    className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">CPF</label>
+                                <input
+                                    type="text"
+                                    value={editForm.CPF}
+                                    onChange={e => setEditForm({ ...editForm, CPF: e.target.value })}
+                                    className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button
+                                onClick={() => setShowEditModal(false)}
+                                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={saveClientEdit}
+                                className="px-4 py-2 bg-primary text-dark-900 rounded-lg font-bold hover:bg-yellow-500 transition-colors"
+                            >
+                                Salvar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
