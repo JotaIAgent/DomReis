@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Search, User, Crown, History, UserX, CheckCircle, Phone, CreditCard, Edit3, X } from 'lucide-react'
+import { Search, User, Crown, History, UserX, CheckCircle, Phone, CreditCard, Edit3, X, UserPlus } from 'lucide-react'
 import { parseDateToLocal } from '../utils/dateUtils'
 import clsx from 'clsx'
 
@@ -15,6 +15,8 @@ export default function Clients() {
     const [loadingDetails, setLoadingDetails] = useState(false)
     const [showEditModal, setShowEditModal] = useState(false)
     const [editForm, setEditForm] = useState({ Nome: '', Telefone: '', CPF: '' })
+    const [showNewClientModal, setShowNewClientModal] = useState(false)
+    const [newClientForm, setNewClientForm] = useState({ Nome: '', Telefone: '', CPF: '' })
 
     // Fetch all clients on mount
     useEffect(() => {
@@ -259,12 +261,54 @@ export default function Clients() {
         }
     }
 
+    const createNewClient = async () => {
+        if (!newClientForm.Nome || !newClientForm.Telefone) {
+            alert('Nome e Telefone são obrigatórios')
+            return
+        }
+
+        try {
+            const { data, error } = await supabase
+                .from('clientes')
+                .insert([{
+                    Nome: newClientForm.Nome,
+                    Telefone: newClientForm.Telefone,
+                    CPF: newClientForm.CPF || null
+                }])
+                .select()
+                .single()
+
+            if (error) throw error
+
+            // Update local state
+            setClients([...clients, data])
+            setFilteredClients([...filteredClients, data])
+            setSelectedClient(data)
+
+            setShowNewClientModal(false)
+            setNewClientForm({ Nome: '', Telefone: '', CPF: '' })
+            alert('Cliente cadastrado com sucesso!')
+        } catch (error) {
+            console.error('Error creating client:', error)
+            alert('Erro ao cadastrar cliente')
+        }
+    }
+
     return (
         <div className="h-[calc(100vh-theme(spacing.32))] flex flex-col space-y-6">
-            <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
-                <User className="text-primary" />
-                Clientes
-            </h1>
+            <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
+                    <User className="text-primary" />
+                    Clientes
+                </h1>
+                <button
+                    onClick={() => setShowNewClientModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary text-dark-900 rounded-lg font-bold hover:bg-yellow-500 transition-colors"
+                >
+                    <UserPlus size={20} />
+                    Novo Cliente
+                </button>
+            </div>
 
             {/* Search Bar */}
             <div className="bg-dark-800 p-4 rounded-xl border border-dark-700 shadow-lg">
@@ -514,6 +558,69 @@ export default function Clients() {
                                 className="px-4 py-2 bg-primary text-dark-900 rounded-lg font-bold hover:bg-yellow-500 transition-colors"
                             >
                                 Salvar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* New Client Modal */}
+            {showNewClientModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+                    <div className="bg-dark-800 rounded-xl border border-dark-700 w-full max-w-md p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold text-white">Novo Cliente</h2>
+                            <button
+                                onClick={() => setShowNewClientModal(false)}
+                                className="text-gray-400 hover:text-white"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">Nome *</label>
+                                <input
+                                    type="text"
+                                    value={newClientForm.Nome}
+                                    onChange={e => setNewClientForm({ ...newClientForm, Nome: e.target.value })}
+                                    className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
+                                    placeholder="Nome completo"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">Telefone *</label>
+                                <input
+                                    type="text"
+                                    value={newClientForm.Telefone}
+                                    onChange={e => setNewClientForm({ ...newClientForm, Telefone: e.target.value })}
+                                    className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
+                                    placeholder="(00) 00000-0000"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">CPF</label>
+                                <input
+                                    type="text"
+                                    value={newClientForm.CPF}
+                                    onChange={e => setNewClientForm({ ...newClientForm, CPF: e.target.value })}
+                                    className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
+                                    placeholder="000.000.000-00"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button
+                                onClick={() => setShowNewClientModal(false)}
+                                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={createNewClient}
+                                className="px-4 py-2 bg-primary text-dark-900 rounded-lg font-bold hover:bg-yellow-500 transition-colors"
+                            >
+                                Cadastrar
                             </button>
                         </div>
                     </div>

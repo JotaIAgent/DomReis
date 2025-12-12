@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { X, Crown, Search, ChevronDown, Check } from 'lucide-react'
+import { X, Crown, Search, ChevronDown, Check, UserPlus } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function NewAppointmentModal({ isOpen, onClose, onSuccess }) {
@@ -29,6 +29,10 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess }) {
     // Service Dropdown State
     const [showServiceDropdown, setShowServiceDropdown] = useState(false)
     const serviceDropdownRef = useRef(null)
+
+    // New Client Modal State
+    const [showNewClientModal, setShowNewClientModal] = useState(false)
+    const [newClientForm, setNewClientForm] = useState({ Nome: '', Telefone: '', CPF: '' })
 
     // Fetch services and clients on mount
     useEffect(() => {
@@ -222,6 +226,38 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess }) {
         }
     }
 
+    const createNewClient = async () => {
+        if (!newClientForm.Nome || !newClientForm.Telefone) {
+            alert('Nome e Telefone são obrigatórios')
+            return
+        }
+
+        try {
+            const { data, error } = await supabase
+                .from('clientes')
+                .insert([{
+                    Nome: newClientForm.Nome,
+                    Telefone: newClientForm.Telefone,
+                    CPF: newClientForm.CPF || null
+                }])
+                .select()
+                .single()
+
+            if (error) throw error
+
+            // Update clients list and select the new client
+            setClients([...clients, data])
+            selectClient(data)
+
+            setShowNewClientModal(false)
+            setNewClientForm({ Nome: '', Telefone: '', CPF: '' })
+            alert('Cliente cadastrado com sucesso!')
+        } catch (error) {
+            console.error('Error creating client:', error)
+            alert('Erro ao cadastrar cliente')
+        }
+    }
+
     const selectedServicesList = formData.servicos ? formData.servicos.split(', ').filter(Boolean) : []
 
     return (
@@ -255,21 +291,48 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess }) {
                             <Search className="absolute right-3 top-2.5 text-gray-500" size={18} />
                         </div>
 
-                        {showClientDropdown && clientSearch && filteredClients.length > 0 && (
+                        {showClientDropdown && clientSearch && (
                             <div className="absolute top-full left-0 right-0 bg-dark-900 border border-dark-700 rounded-b-md shadow-xl z-20 max-h-48 overflow-y-auto mt-1">
-                                {filteredClients.map(client => (
-                                    <div
-                                        key={client.id}
-                                        onClick={() => selectClient(client)}
-                                        className="p-2 hover:bg-dark-800 cursor-pointer text-sm border-b border-dark-800 last:border-0"
+                                {filteredClients.length > 0 ? (
+                                    <>
+                                        {filteredClients.map(client => (
+                                            <div
+                                                key={client.id}
+                                                onClick={() => selectClient(client)}
+                                                className="p-2 hover:bg-dark-800 cursor-pointer text-sm border-b border-dark-800 last:border-0"
+                                            >
+                                                <div className="font-bold text-white">{client.Nome}</div>
+                                                <div className="text-xs text-gray-400">
+                                                    {client.Telefone && <span>{client.Telefone}</span>}
+                                                    {client.CPF && <span className="ml-2">CPF: {client.CPF}</span>}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowClientDropdown(false)
+                                                setShowNewClientModal(true)
+                                            }}
+                                            className="w-full p-2 text-left text-primary hover:bg-dark-800 text-sm font-bold border-t border-dark-700 flex items-center gap-2"
+                                        >
+                                            <UserPlus size={16} />
+                                            Cadastrar Novo Cliente
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowClientDropdown(false)
+                                            setShowNewClientModal(true)
+                                        }}
+                                        className="w-full p-3 text-center text-primary hover:bg-dark-800 text-sm font-bold flex items-center justify-center gap-2"
                                     >
-                                        <div className="font-bold text-white">{client.Nome}</div>
-                                        <div className="text-xs text-gray-400">
-                                            {client.Telefone && <span>{client.Telefone}</span>}
-                                            {client.CPF && <span className="ml-2">CPF: {client.CPF}</span>}
-                                        </div>
-                                    </div>
-                                ))}
+                                        <UserPlus size={16} />
+                                        Cliente não encontrado. Cadastrar novo?
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -427,6 +490,72 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess }) {
                     </button>
                 </form>
             </div>
+
+            {/* New Client Modal */}
+            {showNewClientModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
+                    <div className="bg-dark-800 rounded-xl border border-dark-700 w-full max-w-md p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold text-white">Novo Cliente</h2>
+                            <button
+                                type="button"
+                                onClick={() => setShowNewClientModal(false)}
+                                className="text-gray-400 hover:text-white"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">Nome *</label>
+                                <input
+                                    type="text"
+                                    value={newClientForm.Nome}
+                                    onChange={e => setNewClientForm({ ...newClientForm, Nome: e.target.value })}
+                                    className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
+                                    placeholder="Nome completo"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">Telefone *</label>
+                                <input
+                                    type="text"
+                                    value={newClientForm.Telefone}
+                                    onChange={e => setNewClientForm({ ...newClientForm, Telefone: e.target.value })}
+                                    className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
+                                    placeholder="(00) 00000-0000"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">CPF</label>
+                                <input
+                                    type="text"
+                                    value={newClientForm.CPF}
+                                    onChange={e => setNewClientForm({ ...newClientForm, CPF: e.target.value })}
+                                    className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary"
+                                    placeholder="000.000.000-00"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button
+                                type="button"
+                                onClick={() => setShowNewClientModal(false)}
+                                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={createNewClient}
+                                className="px-4 py-2 bg-primary text-dark-900 rounded-lg font-bold hover:bg-yellow-500 transition-colors"
+                            >
+                                Cadastrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

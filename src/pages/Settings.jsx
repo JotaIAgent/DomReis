@@ -89,7 +89,7 @@ export default function Settings() {
             const table = activeTab === 'services' ? 'services' : 'products'
             const { error } = await supabase
                 .from(table)
-                .update({ active: false })
+                .delete()
                 .eq('id', id)
 
             if (error) throw error
@@ -108,8 +108,8 @@ export default function Settings() {
                 <button
                     onClick={() => setActiveTab('services')}
                     className={`px-4 py-2 rounded-md font-medium transition-colors ${activeTab === 'services'
-                            ? 'bg-primary text-dark-900'
-                            : 'bg-dark-800 text-gray-400 hover:text-white'
+                        ? 'bg-primary text-dark-900'
+                        : 'bg-dark-800 text-gray-400 hover:text-white'
                         }`}
                 >
                     Serviços
@@ -117,8 +117,8 @@ export default function Settings() {
                 <button
                     onClick={() => setActiveTab('products')}
                     className={`px-4 py-2 rounded-md font-medium transition-colors ${activeTab === 'products'
-                            ? 'bg-primary text-dark-900'
-                            : 'bg-dark-800 text-gray-400 hover:text-white'
+                        ? 'bg-primary text-dark-900'
+                        : 'bg-dark-800 text-gray-400 hover:text-white'
                         }`}
                 >
                     Produtos
