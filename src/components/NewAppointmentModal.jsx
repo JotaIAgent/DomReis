@@ -150,7 +150,8 @@ export default function NewAppointmentModal({ isOpen, onClose, onSuccess }) {
                     Hora: formData.hora,
                     Cliente: formData.cliente,
                     Telefone: formData.telefone,
-                    'Valor serviços': parseFloat(formData.valor)
+                    'Valor serviços': parseFloat(formData.valor),
+                    created_by: 'SITE'
                 }])
 
             if (error) throw error

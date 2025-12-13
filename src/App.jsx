@@ -11,6 +11,7 @@ import DailyReport from './pages/DailyReport'
 import Sales from './pages/Sales'
 import Financial from './pages/Financial'
 import Settings from './pages/Settings'
+import AIReport from './pages/AIReport'
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
               <Route path="/valores" element={<Settings />} />
               <Route path="/relatorios" element={<Reports />} />
               <Route path="/relatorios/:date" element={<DailyReport />} />
+              <Route path="/relatorio-ia" element={<AIReport />} />
             </Route>
           </Route>
         </Routes>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { Search, User, Crown, History, UserX, CheckCircle, Phone, CreditCard, Edit3, X, UserPlus } from 'lucide-react'
-import { parseDateToLocal } from '../utils/dateUtils'
+import { parseDateToLocal, getBrasiliaTime } from '../utils/dateUtils'
 import clsx from 'clsx'
 
 export default function Clients() {
@@ -273,7 +273,10 @@ export default function Clients() {
                 .insert([{
                     Nome: newClientForm.Nome,
                     Telefone: newClientForm.Telefone,
-                    CPF: newClientForm.CPF || null
+                    CPF: newClientForm.CPF || null,
+                    created_by: 'SITE',
+                    data: getBrasiliaTime().date,
+                    hora: getBrasiliaTime().time
                 }])
                 .select()
                 .single()

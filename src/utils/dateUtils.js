@@ -65,3 +65,18 @@ export const isSameDay = (date1, date2) => {
         date1.getDate() === date2.getDate()
     );
 };
+
+export const getBrasiliaTime = () => {
+    const now = new Date();
+    const optionsDate = { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' };
+    const optionsTime = { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false };
+
+    // toLocaleString returns DD/MM/YYYY for pt-BR
+    const dateStr = now.toLocaleDateString('pt-BR', optionsDate);
+    const timeStr = now.toLocaleTimeString('pt-BR', optionsTime);
+
+    // Ensure date is strictly DD/MM/YYYY with leading zeros if needed (toLocaleDateString usually handles this for pt-BR)
+    // and time is HH:MM
+
+    return { date: dateStr, time: timeStr };
+};

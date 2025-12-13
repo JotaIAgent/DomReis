@@ -12,7 +12,8 @@ import {
     X,
     BarChart3,
     ShoppingCart,
-    Settings
+    Settings,
+    Bot
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -29,6 +30,7 @@ export default function Layout() {
         { name: 'Financeiro', href: '/financeiro', icon: DollarSign },
         { name: 'Valores', href: '/valores', icon: Settings },
         { name: 'Relatórios', href: '/relatorios', icon: BarChart3 },
+        { name: 'Relatório IA', href: '/relatorio-ia', icon: Bot },
     ]
 
     return (
